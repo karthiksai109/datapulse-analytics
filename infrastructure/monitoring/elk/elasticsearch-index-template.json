@@ -1,0 +1,30 @@
+{
+  "index_patterns": ["datapulse-events-*", "datapulse-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "datapulse-ilm-policy",
+      "index.lifecycle.rollover_alias": "datapulse-events"
+    },
+    "mappings": {
+      "properties": {
+        "event_type": {
+          "type": "keyword",
+          "fields": {
+            "text": { "type": "text" },
+            "suggest": { "type": "completion" }
+          }
+        },
+        "timestamp": { "type": "date" },
+        "payload": { "type": "object", "dynamic": true },
+        "metadata": { "type": "object", "dynamic": true },
+        "source_id": { "type": "keyword" },
+        "event_id": { "type": "keyword" },
+        "log_level": { "type": "keyword" },
+        "service": { "type": "keyword" },
+        "message": { "type": "text" }
+      }
+    }
+  }
+}

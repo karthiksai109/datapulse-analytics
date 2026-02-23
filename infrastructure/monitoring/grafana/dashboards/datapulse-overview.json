@@ -1,0 +1,104 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "DataPulse Analytics Overview",
+    "tags": ["datapulse", "analytics"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": { "from": "now-6h", "to": "now" },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Events Ingested (Rate)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "datasource": "Elasticsearch",
+            "query": "event_type:*",
+            "metrics": [{ "type": "count", "id": "1" }],
+            "bucketAggs": [{ "type": "date_histogram", "field": "timestamp", "settings": { "interval": "1m" } }]
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Active Data Sources",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "datasource": "PostgreSQL",
+            "rawSql": "SELECT COUNT(*) as count FROM analytics_datasource WHERE is_active = true"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Alert Triggers (24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "datasource": "PostgreSQL",
+            "rawSql": "SELECT COUNT(*) FROM analytics_alert WHERE last_triggered > NOW() - INTERVAL '24 hours'"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Events by Type",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 4 },
+        "targets": [
+          {
+            "datasource": "Elasticsearch",
+            "query": "*",
+            "metrics": [{ "type": "count", "id": "1" }],
+            "bucketAggs": [{ "type": "terms", "field": "event_type.keyword", "settings": { "size": "10" } }]
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "API Response Times",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "datasource": "Elasticsearch",
+            "query": "service:datapulse-django",
+            "metrics": [{ "type": "avg", "field": "duration_ms", "id": "1" }],
+            "bucketAggs": [{ "type": "date_histogram", "field": "timestamp", "settings": { "interval": "1m" } }]
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Kafka Consumer Lag",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 4 },
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "expr": "kafka_consumer_group_lag{group='datapulse-django-consumer'}"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Error Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          {
+            "datasource": "Elasticsearch",
+            "query": "log_level:ERROR",
+            "metrics": [{ "type": "count", "id": "1" }],
+            "bucketAggs": [{ "type": "date_histogram", "field": "timestamp", "settings": { "interval": "5m" } }]
+          }
+        ]
+      }
+    ]
+  }
+}
