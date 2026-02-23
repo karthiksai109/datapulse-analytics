@@ -1,0 +1,6 @@
+[project]
+name = "datapulse-api"
+version = "1.0.0"
+description = "DataPulse Analytics Serverless API Functions"
+requires-python = ">=3.9"
+dependencies = []
