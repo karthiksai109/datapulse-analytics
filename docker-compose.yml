@@ -72,21 +72,6 @@ services:
       - datapulse-network
     restart: unless-stopped
 
-  # Angular Admin Panel
-  angular-admin:
-    build:
-      context: ./frontend/angular-admin
-      dockerfile: ../../infrastructure/docker/Dockerfile.angular
-    container_name: datapulse-angular
-    ports:
-      - "4200:4200"
-    volumes:
-      - ./frontend/angular-admin:/app
-      - /app/node_modules
-    networks:
-      - datapulse-network
-    restart: unless-stopped
-
   # PostgreSQL
   postgres:
     image: postgres:16-alpine

@@ -2,7 +2,7 @@
 
 **Real-time data analytics and AI-powered insights platform built with a microservices architecture.**
 
-DataPulse Analytics is a production-grade, full-stack platform designed to ingest, process, analyze, and visualize high-volume data streams in real time. It combines multiple backend frameworks (Django, FastAPI, Flask), dual frontend applications (React, Angular), event-driven messaging (Kafka, RabbitMQ), AI-powered analysis (AWS Bedrock, OpenAI), and enterprise-grade infrastructure (Docker, Kubernetes, AWS, Azure).
+DataPulse Analytics is a production-grade, full-stack platform designed to ingest, process, analyze, and visualize high-volume data streams in real time. It combines multiple backend frameworks (Django, FastAPI, Flask), a React frontend dashboard, event-driven messaging (Kafka, RabbitMQ), AI-powered analysis (AWS Bedrock, OpenAI), and enterprise-grade infrastructure (Docker, Kubernetes, AWS, Azure).
 
 ---
 
@@ -35,13 +35,18 @@ DataPulse Analytics is a production-grade, full-stack platform designed to inges
         │ AWS Lambda  │         │ Celery      │
         │ (Serverless)│         │ Workers     │
         └─────────────┘         └─────────────┘
+
+        ┌────────────────────────────────────────┐
+        │     React Dashboard (Port 3000)        │
+        │  Material UI + Recharts + WebSocket    │
+        └────────────────────────────────────────┘
 ```
 
 ## Tech Stack
 
 | Category | Technologies |
 |---|---|
-| **UI Development** | React 18, Angular 17, Material UI, Angular Material |
+| **UI Development** | React 18, Material UI 5, Recharts, React Router 6 |
 | **Backend** | Python 3.11, Django 4.2, Flask 3.0, FastAPI 0.109 |
 | **Messaging** | Apache Kafka, RabbitMQ, Celery |
 | **CI/CD** | GitHub Actions, Jenkins |
@@ -74,16 +79,12 @@ datapulse-analytics/
 │           ├── routes/          # AI summarization, analysis, NL query endpoints
 │           └── services/        # Bedrock, OpenAI, LLM orchestrator
 ├── frontend/
-│   ├── react-dashboard/         # Main user dashboard (React + MUI + Recharts)
-│   │   └── src/
-│   │       ├── components/      # Layout, ProtectedRoute
-│   │       ├── pages/           # Dashboard, Events, Alerts, Reports, AI Insights
-│   │       ├── services/        # API client, WebSocket service
-│   │       └── context/         # Auth context
-│   └── angular-admin/           # Admin panel (Angular + Angular Material)
-│       └── src/app/
-│           ├── components/      # Admin dashboard, user management, system health
-│           └── services/        # Admin API service, auth interceptor
+│   └── react-dashboard/         # Dashboard (React 18 + MUI + Recharts)
+│       └── src/
+│           ├── components/      # Layout, ProtectedRoute
+│           ├── pages/           # Dashboard, Events, Alerts, Reports, AI Insights, Settings
+│           ├── services/        # API client, WebSocket service
+│           └── context/         # Auth context (JWT token management)
 ├── infrastructure/
 │   ├── docker/                  # Dockerfiles for all services
 │   ├── kubernetes/manifests/    # K8s deployments, services, HPA, ingress
@@ -121,7 +122,7 @@ datapulse-analytics/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/datapulse-analytics.git
+git clone https://github.com/karthiksai109/datapulse-analytics.git
 cd datapulse-analytics
 ```
 
@@ -144,7 +145,6 @@ docker exec datapulse-django python manage.py createsuperuser
 
 5. **Access the applications**
 - React Dashboard: http://localhost:3000
-- Angular Admin: http://localhost:4200
 - Django API: http://localhost:8000/swagger/
 - FastAPI Docs: http://localhost:8001/docs
 - Flask AI Service: http://localhost:5001/api/v1/health
@@ -185,12 +185,29 @@ npm install
 npm start
 ```
 
-**Angular Admin:**
-```bash
-cd frontend/angular-admin
-npm install
-npm start
-```
+## React Frontend
+
+The React dashboard is the single frontend for the platform, built with:
+- **React 18** with functional components and hooks
+- **Material UI 5** for a professional dark-themed UI
+- **Recharts** for interactive data visualizations (area charts, pie charts)
+- **React Router 6** for client-side routing with protected routes
+- **Axios** with JWT interceptors for API communication
+- **Socket.IO** for real-time WebSocket updates
+- **Context API** for global auth state management
+- **Notistack** for toast notifications
+
+### Pages
+| Page | Description |
+|------|-------------|
+| **Login** | JWT authentication with error handling |
+| **Dashboard** | Overview with stat cards, event trend chart, event distribution pie chart |
+| **Data Sources** | CRUD management for API, webhook, CSV, and database sources |
+| **Events** | Searchable, paginated event table powered by Elasticsearch |
+| **Alerts** | Alert management with severity levels (critical, high, medium, low) |
+| **Reports** | Report generation in PDF/CSV/JSON with AI-powered summaries |
+| **AI Insights** | Interactive AI tools - summarize, analyze, NL-to-query, anomaly detection |
+| **Settings** | Profile management, password change, API key generation |
 
 ## API Endpoints
 
@@ -258,7 +275,7 @@ The project uses both **GitHub Actions** and **Jenkins** for CI/CD:
 1. **CI Pipeline** (`.github/workflows/ci.yml`): Runs on every push/PR
    - Python linting (flake8, black)
    - Django, FastAPI, Flask unit tests
-   - React and Angular builds
+   - React build verification
    - SonarQube code quality analysis
    - Docker image builds
 
