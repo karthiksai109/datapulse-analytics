@@ -1,0 +1,40 @@
+version: 1.0
+
+scan_config:
+  project_name: DataPulse Analytics
+  scan_type: static
+  language: python
+  
+  include_paths:
+    - backend/django_app/
+    - backend/fastapi_service/
+    - backend/flask_ai_service/
+    - aws_lambda/
+
+  exclude_paths:
+    - "**/node_modules/**"
+    - "**/migrations/**"
+    - "**/__pycache__/**"
+    - "**/tests/**"
+    - "**/venv/**"
+    - "infrastructure/**"
+
+  policy: "DataPulse Security Policy"
+  
+  severity_threshold: medium
+  
+  fail_on_severity: high
+
+  scan_options:
+    static_analysis: true
+    software_composition_analysis: true
+    dynamic_analysis: false
+
+  notifications:
+    email:
+      - security@datapulse.dev
+    slack_channel: "#security-alerts"
+
+  compliance:
+    - OWASP_TOP_10
+    - CWE_SANS_25
