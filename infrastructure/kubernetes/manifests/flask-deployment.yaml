@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datapulse-flask-ai
+  namespace: datapulse
+  labels:
+    app: datapulse
+    component: flask-ai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: datapulse
+      component: flask-ai
+  template:
+    metadata:
+      labels:
+        app: datapulse
+        component: flask-ai
+    spec:
+      containers:
+        - name: flask-ai
+          image: datapulse/flask-ai:latest
+          ports:
+            - containerPort: 5001
+          envFrom:
+            - configMapRef:
+                name: datapulse-config
+            - secretRef:
+                name: datapulse-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 5001
+            initialDelaySeconds: 20
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datapulse-flask-ai-svc
+  namespace: datapulse
+spec:
+  selector:
+    app: datapulse
+    component: flask-ai
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5001
+  type: ClusterIP

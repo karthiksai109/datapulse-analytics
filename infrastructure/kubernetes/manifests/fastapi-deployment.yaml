@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datapulse-fastapi
+  namespace: datapulse
+  labels:
+    app: datapulse
+    component: fastapi-ingestion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: datapulse
+      component: fastapi-ingestion
+  template:
+    metadata:
+      labels:
+        app: datapulse
+        component: fastapi-ingestion
+    spec:
+      containers:
+        - name: fastapi-ingestion
+          image: datapulse/fastapi-ingestion:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: datapulse-config
+            - secretRef:
+                name: datapulse-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "200m"
+            limits:
+              memory: "256Mi"
+              cpu: "400m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datapulse-fastapi-svc
+  namespace: datapulse
+spec:
+  selector:
+    app: datapulse
+    component: fastapi-ingestion
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8001
+  type: ClusterIP

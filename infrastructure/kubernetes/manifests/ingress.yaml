@@ -1,0 +1,79 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: datapulse-ingress
+  namespace: datapulse
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.datapulse.example.com
+        - app.datapulse.example.com
+      secretName: datapulse-tls
+  rules:
+    - host: api.datapulse.example.com
+      http:
+        paths:
+          - path: /api/v1/analytics
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-django-svc
+                port:
+                  number: 80
+          - path: /api/v1/users
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-django-svc
+                port:
+                  number: 80
+          - path: /api/v1/ingest
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-fastapi-svc
+                port:
+                  number: 80
+          - path: /api/v1/search
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-fastapi-svc
+                port:
+                  number: 80
+          - path: /api/v1/ai
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-flask-ai-svc
+                port:
+                  number: 80
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-fastapi-svc
+                port:
+                  number: 80
+    - host: app.datapulse.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-react-svc
+                port:
+                  number: 80
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: datapulse-angular-svc
+                port:
+                  number: 80

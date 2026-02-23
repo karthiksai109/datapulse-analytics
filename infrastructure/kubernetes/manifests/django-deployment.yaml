@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datapulse-django
+  namespace: datapulse
+  labels:
+    app: datapulse
+    component: django-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: datapulse
+      component: django-api
+  template:
+    metadata:
+      labels:
+        app: datapulse
+        component: django-api
+    spec:
+      containers:
+        - name: django-api
+          image: datapulse/django-api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: datapulse-config
+            - secretRef:
+                name: datapulse-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health/live/
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/ready/
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datapulse-django-svc
+  namespace: datapulse
+spec:
+  selector:
+    app: datapulse
+    component: django-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: datapulse-django-hpa
+  namespace: datapulse
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: datapulse-django
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
