@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
-const FASTAPI_URL = process.env.REACT_APP_FASTAPI_URL || 'http://localhost:8001/api/v1';
-const FLASK_AI_URL = process.env.REACT_APP_FLASK_AI_URL || 'http://localhost:5001/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
+const FASTAPI_URL = process.env.REACT_APP_FASTAPI_URL || '/api/v1';
+const FLASK_AI_URL = process.env.REACT_APP_FLASK_AI_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

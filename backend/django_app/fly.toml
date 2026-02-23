@@ -1,0 +1,23 @@
+app = 'datapulse-django'
+primary_region = 'iad'
+
+[build]
+
+[deploy]
+  release_command = 'python manage.py migrate'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[env]
+  DJANGO_DEBUG = 'False'
+  DJANGO_ALLOWED_HOSTS = '*'
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
