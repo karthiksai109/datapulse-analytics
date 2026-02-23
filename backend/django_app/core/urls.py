@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -17,7 +18,22 @@ schema_view = get_schema_view(
     permission_classes=(permissions.AllowAny,),
 )
 
+
+def root_view(request):
+    return JsonResponse({
+        "service": "DataPulse Django API",
+        "version": "1.0.0",
+        "endpoints": {
+            "admin": "/admin/",
+            "api": "/api/v1/",
+            "swagger": "/swagger/",
+            "health": "/api/v1/health/live/",
+        }
+    })
+
+
 urlpatterns = [
+    path("", root_view, name="root"),
     path("admin/", admin.site.urls),
     path("api/v1/analytics/", include("analytics.urls")),
     path("api/v1/users/", include("users.urls")),
