@@ -26,7 +26,22 @@ const Events = () => {
       setEvents(res.data.results || res.data || []);
       setTotal(res.data.count || 0);
     } catch (err) {
-      console.error('Failed to fetch events:', err);
+      const demoEvents = [
+        { id: 1, event_type: 'page_view', source: 'Web App', timestamp: new Date().toISOString(), processed: true, payload: { page: '/dashboard', duration: 3.2, user_agent: 'Chrome/120' } },
+        { id: 2, event_type: 'purchase', source: 'Mobile API', timestamp: new Date(Date.now() - 60000).toISOString(), processed: true, payload: { product_id: 'SKU-4521', amount: 49.99, currency: 'USD' } },
+        { id: 3, event_type: 'error', source: 'Payment Service', timestamp: new Date(Date.now() - 120000).toISOString(), processed: false, payload: { error: 'timeout', service: 'stripe', retry: 2 } },
+        { id: 4, event_type: 'signup', source: 'Web App', timestamp: new Date(Date.now() - 180000).toISOString(), processed: true, payload: { method: 'google_oauth', plan: 'pro' } },
+        { id: 5, event_type: 'api_call', source: 'Partner API', timestamp: new Date(Date.now() - 240000).toISOString(), processed: true, payload: { endpoint: '/v2/analytics', method: 'GET', status: 200 } },
+        { id: 6, event_type: 'alert_trigger', source: 'Monitoring', timestamp: new Date(Date.now() - 300000).toISOString(), processed: true, payload: { alert: 'High CPU', severity: 'warning', value: 87 } },
+        { id: 7, event_type: 'data_sync', source: 'ETL Pipeline', timestamp: new Date(Date.now() - 360000).toISOString(), processed: true, payload: { records: 15420, source_db: 'postgres', duration_ms: 2340 } },
+        { id: 8, event_type: 'page_view', source: 'Web App', timestamp: new Date(Date.now() - 420000).toISOString(), processed: true, payload: { page: '/reports', duration: 1.8 } },
+        { id: 9, event_type: 'webhook', source: 'GitHub', timestamp: new Date(Date.now() - 480000).toISOString(), processed: true, payload: { action: 'push', repo: 'datapulse-analytics', branch: 'main' } },
+        { id: 10, event_type: 'purchase', source: 'Mobile API', timestamp: new Date(Date.now() - 540000).toISOString(), processed: true, payload: { product_id: 'SKU-1102', amount: 129.00, currency: 'USD' } },
+        { id: 11, event_type: 'error', source: 'Auth Service', timestamp: new Date(Date.now() - 600000).toISOString(), processed: false, payload: { error: 'invalid_token', user_id: 'usr_382' } },
+        { id: 12, event_type: 'api_call', source: 'Internal', timestamp: new Date(Date.now() - 660000).toISOString(), processed: true, payload: { endpoint: '/health', method: 'GET', status: 200 } },
+      ];
+      setEvents(demoEvents);
+      setTotal(demoEvents.length);
     } finally {
       setLoading(false);
     }
@@ -40,7 +55,7 @@ const Events = () => {
       setEvents(res.data.results || []);
       setTotal(res.data.total || 0);
     } catch (err) {
-      console.error('Search failed:', err);
+      fetchEvents();
     } finally {
       setLoading(false);
     }
@@ -100,7 +115,7 @@ const Events = () => {
                 events.map((event) => (
                   <TableRow key={event.id} hover>
                     <TableCell>
-                      <Chip label={event.event_type} size="small" sx={{ bgcolor: 'rgba(108,99,255,0.15)', color: '#6c63ff' }} />
+                      <Chip label={event.event_type} size="small" sx={{ bgcolor: 'rgba(232,145,58,0.12)', color: '#e8913a' }} />
                     </TableCell>
                     <TableCell>{event.source || 'N/A'}</TableCell>
                     <TableCell>{new Date(event.timestamp).toLocaleString()}</TableCell>

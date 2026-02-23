@@ -31,15 +31,15 @@ const Login = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%)' }}>
-      <Card sx={{ maxWidth: 420, width: '100%', mx: 2, border: '1px solid rgba(108, 99, 255, 0.2)' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b1120' }}>
+      <Card sx={{ maxWidth: 400, width: '100%', mx: 2, border: '1px solid rgba(232,145,58,0.15)', background: '#111827' }}>
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, background: 'linear-gradient(135deg, #6c63ff, #00d4aa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', mb: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#e8913a', mb: 0.5, letterSpacing: '-0.03em' }}>
               DataPulse
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Real-time Analytics Platform
+            <Typography variant="body2" sx={{ color: '#8892a4' }}>
+              Analytics Platform
             </Typography>
           </Box>
 
@@ -68,7 +68,7 @@ const Login = () => {
             <Button
               type="submit" fullWidth variant="contained" size="large"
               disabled={loading}
-              sx={{ py: 1.5, background: 'linear-gradient(135deg, #6c63ff, #5a52d5)', '&:hover': { background: 'linear-gradient(135deg, #5a52d5, #4a42c5)' } }}
+              sx={{ py: 1.5, bgcolor: '#e8913a', '&:hover': { bgcolor: '#d17e2f' } }}
             >
               {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>

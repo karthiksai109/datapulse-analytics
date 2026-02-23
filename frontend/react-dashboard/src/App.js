@@ -17,36 +17,45 @@ import Settings from './pages/Settings';
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#6c63ff' },
-    secondary: { main: '#00d4aa' },
+    primary: { main: '#e8913a' },
+    secondary: { main: '#5b8def' },
     background: {
-      default: '#0a0a1a',
-      paper: '#12122a',
+      default: '#0b1120',
+      paper: '#111827',
     },
     text: {
-      primary: '#e0e0e0',
-      secondary: '#a0a0b0',
+      primary: '#d1d5db',
+      secondary: '#8892a4',
     },
+    success: { main: '#34d399' },
+    error: { main: '#f87171' },
+    warning: { main: '#fbbf24' },
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h4: { fontWeight: 600 },
+    fontFamily: '"Inter", "Segoe UI", "Helvetica", "Arial", sans-serif',
+    h4: { fontWeight: 700, letterSpacing: '-0.02em' },
     h5: { fontWeight: 600 },
-    h6: { fontWeight: 500 },
+    h6: { fontWeight: 600, fontSize: '1rem' },
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 10 },
   components: {
     MuiCard: {
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          border: '1px solid rgba(108, 99, 255, 0.1)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
         },
       },
     },
     MuiButton: {
       styleOverrides: {
-        root: { textTransform: 'none', fontWeight: 500 },
+        root: { textTransform: 'none', fontWeight: 600, borderRadius: 8 },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: { fontWeight: 500 },
       },
     },
   },

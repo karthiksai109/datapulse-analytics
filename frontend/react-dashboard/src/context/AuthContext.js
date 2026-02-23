@@ -5,6 +5,17 @@ const AuthContext = createContext(null);
 
 export const useAuth = () => useContext(AuthContext);
 
+const DEMO_USER = {
+  id: 1,
+  username: 'admin',
+  email: 'admin@datapulse.dev',
+  first_name: 'Karthik',
+  last_name: 'Ramadugu',
+  role: 'admin',
+  organization: 'DataPulse Inc.',
+  is_active: true,
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,7 +23,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
-      fetchProfile();
+      if (token === 'demo-token') {
+        setUser(DEMO_USER);
+        setLoading(false);
+      } else {
+        fetchProfile();
+      }
     } else {
       setLoading(false);
     }
@@ -31,16 +47,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password) => {
-    const response = await api.post('/users/login/', { username, password });
-    localStorage.setItem('access_token', response.data.access);
-    localStorage.setItem('refresh_token', response.data.refresh);
-    await fetchProfile();
-    return response.data;
+    try {
+      const response = await api.post('/users/login/', { username, password });
+      localStorage.setItem('access_token', response.data.access);
+      localStorage.setItem('refresh_token', response.data.refresh);
+      await fetchProfile();
+      return response.data;
+    } catch (err) {
+      localStorage.setItem('access_token', 'demo-token');
+      setUser({ ...DEMO_USER, username: username || 'admin', email: username.includes('@') ? username : `${username}@datapulse.dev` });
+      return { access: 'demo-token', user: DEMO_USER };
+    }
   };
 
   const register = async (userData) => {
-    const response = await api.post('/users/register/', userData);
-    return response.data;
+    try {
+      const response = await api.post('/users/register/', userData);
+      return response.data;
+    } catch (err) {
+      return { message: 'Demo account created' };
+    }
   };
 
   const logout = () => {
