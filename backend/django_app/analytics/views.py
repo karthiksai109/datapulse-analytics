@@ -131,7 +131,13 @@ class AnalyticsEventViewSet(viewsets.ModelViewSet):
         # Publish to Kafka for real-time processing
         publish_event(event)
         # Queue async processing via RabbitMQ/Celery
-        process_analytics_event.delay(str(event.id))
+        try:
+            process_analytics_event.delay(str(event.id))
+        except Exception:
+            try:
+                process_analytics_event(str(event.id))
+            except Exception as e:
+                logger.warning(f"Sync event processing failed: {e}")
         logger.info(f"Event {event.id} created and queued for processing")
 
     @action(detail=False, methods=["post"])
@@ -149,7 +155,13 @@ class AnalyticsEventViewSet(viewsets.ModelViewSet):
 
         for event in events:
             publish_event(event)
-            process_analytics_event.delay(str(event.id))
+            try:
+                process_analytics_event.delay(str(event.id))
+            except Exception:
+                try:
+                    process_analytics_event(str(event.id))
+                except Exception:
+                    pass
 
         logger.info(f"Bulk ingested {len(events)} events")
         return Response(
@@ -200,5 +212,11 @@ class ReportViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         report = serializer.save()
-        generate_report_task.delay(str(report.id))
+        try:
+            generate_report_task.delay(str(report.id))
+        except Exception:
+            try:
+                generate_report_task(str(report.id))
+            except Exception as e:
+                logger.warning(f"Sync report generation failed: {e}")
         logger.info(f"Report {report.id} generation queued")

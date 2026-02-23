@@ -5,10 +5,13 @@ logger = logging.getLogger("analytics")
 
 
 def get_es_client():
+    es_host = getattr(settings, "ELASTICSEARCH_HOST", "")
+    if not es_host:
+        return None
     try:
         from elasticsearch import Elasticsearch
         es = Elasticsearch(
-            hosts=[settings.ELASTICSEARCH_DSL["default"]["hosts"]],
+            hosts=[es_host],
             request_timeout=30,
         )
         if es.ping():
