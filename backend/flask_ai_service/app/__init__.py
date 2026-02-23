@@ -10,9 +10,7 @@ def create_app():
     app.config["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
     app.config["BEDROCK_MODEL_ID"] = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-v2")
 
-    CORS(app, origins=os.environ.get(
-        "CORS_ORIGINS", "http://localhost:3000,http://localhost:4200"
-    ).split(","))
+    CORS(app, origins="*")
 
     from .routes.ai_routes import ai_bp
     from .routes.health_routes import health_bp

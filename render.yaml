@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: datapulse-django
+    runtime: python
+    region: ohio
+    buildCommand: "cd backend/django_app && pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    startCommand: "cd backend/django_app && gunicorn core.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+
+  - type: web
+    name: datapulse-fastapi
+    runtime: python
+    region: ohio
+    buildCommand: "cd backend/fastapi_service && pip install -r requirements.txt"
+    startCommand: "cd backend/fastapi_service && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+
+  - type: web
+    name: datapulse-flask
+    runtime: python
+    region: ohio
+    buildCommand: "cd backend/flask_ai_service && pip install -r requirements.txt"
+    startCommand: "cd backend/flask_ai_service && gunicorn wsgi:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.11.0"

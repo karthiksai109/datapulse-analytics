@@ -8,7 +8,11 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-in-produ
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,*").split(",")
+
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -23,7 +27,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "drf_yasg",
-    "django_elasticsearch_dsl",
     # Local apps
     "analytics",
     "users",
@@ -31,6 +34,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -61,17 +65,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-# Database - PostgreSQL (SQL) + MongoDB (NoSQL)
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "datapulse"),
-        "USER": os.environ.get("POSTGRES_USER", "datapulse_user"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "datapulse_pass"),
-        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+# Database
+if os.environ.get("DATABASE_URL"):
+    import dj_database_url
+    DATABASES = {"default": dj_database_url.config(default=os.environ.get("DATABASE_URL"), conn_max_age=600)}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 # MongoDB connection for NoSQL operations
 MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/datapulse")
@@ -91,6 +95,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -130,21 +135,14 @@ SIMPLE_JWT = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:4200"
-).split(",")
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# Elasticsearch
-ELASTICSEARCH_DSL = {
-    "default": {
-        "hosts": os.environ.get("ELASTICSEARCH_HOST", "localhost:9200"),
-    },
-}
+# Elasticsearch (optional - disabled if not configured)
+ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "")
 
-# Kafka
-KAFKA_BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+# Kafka (optional)
+KAFKA_BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "")
 KAFKA_TOPIC_EVENTS = "datapulse-events"
 KAFKA_TOPIC_ANALYTICS = "datapulse-analytics"
 KAFKA_CONSUMER_GROUP = "datapulse-django-consumer"
@@ -163,16 +161,17 @@ AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 AWS_S3_BUCKET = os.environ.get("AWS_S3_BUCKET", "datapulse-storage")
 
-# Redis Cache
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+# Cache
+if os.environ.get("REDIS_URL"):
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": os.environ.get("REDIS_URL"),
+            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        }
     }
-}
+else:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
 # Logging
 LOGGING = {
@@ -180,12 +179,8 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
-        },
-        "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
         },
     },
     "handlers": {
@@ -193,28 +188,12 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": BASE_DIR / "logs" / "datapulse.log",
-            "maxBytes": 1024 * 1024 * 10,
-            "backupCount": 5,
-            "formatter": "json",
-        },
     },
     "root": {
-        "handlers": ["console", "file"],
+        "handlers": ["console"],
         "level": "INFO",
     },
-    "loggers": {
-        "django": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "analytics": {
-            "handlers": ["console", "file"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
-    },
 }
+
+# Custom user model
+AUTH_USER_MODEL = "users.CustomUser"

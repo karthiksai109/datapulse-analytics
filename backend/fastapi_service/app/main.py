@@ -3,10 +3,8 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from .routers import ingestion, search, websocket_router
-from .services.kafka_consumer import start_consumer, stop_consumer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("datapulse-fastapi")
@@ -15,10 +13,14 @@ logger = logging.getLogger("datapulse-fastapi")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting DataPulse FastAPI ingestion service")
-    await start_consumer()
+    if os.environ.get("KAFKA_BOOTSTRAP_SERVERS"):
+        try:
+            from .services.kafka_consumer import start_consumer, stop_consumer
+            await start_consumer()
+        except Exception as e:
+            logger.warning(f"Kafka consumer not started: {e}")
     yield
     logger.info("Shutting down DataPulse FastAPI ingestion service")
-    await stop_consumer()
 
 
 app = FastAPI(
@@ -33,15 +35,10 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:4200").split(","),
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(","),
 )
 
 # Routers
