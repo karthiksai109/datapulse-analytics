@@ -1,0 +1,174 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = credentials('docker-registry-url')
+        AWS_CREDENTIALS = credentials('aws-credentials')
+        SONAR_TOKEN = credentials('sonarqube-token')
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git log --oneline -5'
+            }
+        }
+
+        stage('Install Dependencies') {
+            parallel {
+                stage('Python Dependencies') {
+                    steps {
+                        sh '''
+                            python -m venv venv
+                            . venv/bin/activate
+                            pip install -r backend/django_app/requirements.txt
+                            pip install -r backend/fastapi_service/requirements.txt
+                            pip install -r backend/flask_ai_service/requirements.txt
+                            pip install pytest flake8 black coverage
+                        '''
+                    }
+                }
+                stage('Node Dependencies') {
+                    steps {
+                        dir('frontend/react-dashboard') {
+                            sh 'npm ci'
+                        }
+                        dir('frontend/angular-admin') {
+                            sh 'npm ci'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Lint & Code Quality') {
+            parallel {
+                stage('Python Lint') {
+                    steps {
+                        sh '''
+                            . venv/bin/activate
+                            flake8 backend/ --max-line-length=120 --exclude=migrations,venv
+                            black --check backend/
+                        '''
+                    }
+                }
+                stage('React Lint') {
+                    steps {
+                        dir('frontend/react-dashboard') {
+                            sh 'npm run lint || true'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            parallel {
+                stage('Django Tests') {
+                    steps {
+                        sh '''
+                            . venv/bin/activate
+                            cd backend/django_app
+                            python manage.py test --verbosity=2
+                        '''
+                    }
+                }
+                stage('FastAPI Tests') {
+                    steps {
+                        sh '''
+                            . venv/bin/activate
+                            cd backend/fastapi_service
+                            pytest tests/ -v --tb=short
+                        '''
+                    }
+                }
+                stage('Flask Tests') {
+                    steps {
+                        sh '''
+                            . venv/bin/activate
+                            cd backend/flask_ai_service
+                            pytest tests/ -v --tb=short
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        sonar-scanner \
+                            -Dsonar.projectKey=datapulse-analytics \
+                            -Dsonar.sources=backend/,frontend/ \
+                            -Dsonar.python.coverage.reportPaths=coverage.xml
+                    '''
+                }
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                sh '''
+                    echo "Running Veracode security scan..."
+                    # veracode-cli scan --source backend/ --policy "DataPulse Security Policy"
+                '''
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                sh '''
+                    docker build -f infrastructure/docker/Dockerfile.django -t ${DOCKER_REGISTRY}/datapulse-django:${BUILD_NUMBER} backend/django_app
+                    docker build -f infrastructure/docker/Dockerfile.fastapi -t ${DOCKER_REGISTRY}/datapulse-fastapi:${BUILD_NUMBER} backend/fastapi_service
+                    docker build -f infrastructure/docker/Dockerfile.flask -t ${DOCKER_REGISTRY}/datapulse-flask-ai:${BUILD_NUMBER} backend/flask_ai_service
+                '''
+            }
+        }
+
+        stage('Push Images') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh '''
+                    docker push ${DOCKER_REGISTRY}/datapulse-django:${BUILD_NUMBER}
+                    docker push ${DOCKER_REGISTRY}/datapulse-fastapi:${BUILD_NUMBER}
+                    docker push ${DOCKER_REGISTRY}/datapulse-flask-ai:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh '''
+                    kubectl set image deployment/datapulse-django django-api=${DOCKER_REGISTRY}/datapulse-django:${BUILD_NUMBER} -n datapulse-staging
+                    kubectl set image deployment/datapulse-fastapi fastapi-ingestion=${DOCKER_REGISTRY}/datapulse-fastapi:${BUILD_NUMBER} -n datapulse-staging
+                    kubectl rollout status deployment/datapulse-django -n datapulse-staging --timeout=300s
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}

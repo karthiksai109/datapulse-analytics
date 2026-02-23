@@ -1,0 +1,155 @@
+name: DataPulse CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  django-tests:
+    name: Django API Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: datapulse_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/django_app/requirements.txt
+      - name: Run Django tests
+        working-directory: backend/django_app
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_DB: datapulse_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          DJANGO_SECRET_KEY: test-secret-key
+        run: |
+          python manage.py test --verbosity=2
+      - name: Run linting
+        run: |
+          pip install flake8 black isort
+          flake8 backend/django_app --max-line-length=120 --exclude=migrations
+          black --check backend/django_app
+          isort --check-only backend/django_app
+
+  fastapi-tests:
+    name: FastAPI Service Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/fastapi_service/requirements.txt && pip install pytest httpx
+      - name: Run FastAPI tests
+        working-directory: backend/fastapi_service
+        run: pytest tests/ -v
+
+  flask-tests:
+    name: Flask AI Service Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/flask_ai_service/requirements.txt && pip install pytest
+      - name: Run Flask tests
+        working-directory: backend/flask_ai_service
+        run: pytest tests/ -v
+
+  react-build:
+    name: React Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/react-dashboard/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend/react-dashboard
+        run: npm ci
+      - name: Lint
+        working-directory: frontend/react-dashboard
+        run: npm run lint || true
+      - name: Build
+        working-directory: frontend/react-dashboard
+        run: npm run build
+
+  angular-build:
+    name: Angular Admin Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/angular-admin/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend/angular-admin
+        run: npm ci
+      - name: Build
+        working-directory: frontend/angular-admin
+        run: npm run build
+
+  sonarqube-scan:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: [django-tests, fastapi-tests, flask-tests]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [django-tests, fastapi-tests, flask-tests, react-build, angular-build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Django image
+        run: docker build -f infrastructure/docker/Dockerfile.django -t datapulse/django-api:${{ github.sha }} backend/django_app
+      - name: Build FastAPI image
+        run: docker build -f infrastructure/docker/Dockerfile.fastapi -t datapulse/fastapi-ingestion:${{ github.sha }} backend/fastapi_service
+      - name: Build Flask image
+        run: docker build -f infrastructure/docker/Dockerfile.flask -t datapulse/flask-ai:${{ github.sha }} backend/flask_ai_service

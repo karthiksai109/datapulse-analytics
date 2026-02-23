@@ -1,0 +1,101 @@
+name: DataPulse CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Django API
+        run: |
+          docker build -f infrastructure/docker/Dockerfile.django -t $ECR_REGISTRY/datapulse-django:${{ github.sha }} backend/django_app
+          docker push $ECR_REGISTRY/datapulse-django:${{ github.sha }}
+          docker tag $ECR_REGISTRY/datapulse-django:${{ github.sha }} $ECR_REGISTRY/datapulse-django:latest
+          docker push $ECR_REGISTRY/datapulse-django:latest
+
+      - name: Build and push FastAPI
+        run: |
+          docker build -f infrastructure/docker/Dockerfile.fastapi -t $ECR_REGISTRY/datapulse-fastapi:${{ github.sha }} backend/fastapi_service
+          docker push $ECR_REGISTRY/datapulse-fastapi:${{ github.sha }}
+
+      - name: Build and push Flask AI
+        run: |
+          docker build -f infrastructure/docker/Dockerfile.flask -t $ECR_REGISTRY/datapulse-flask-ai:${{ github.sha }} backend/flask_ai_service
+          docker push $ECR_REGISTRY/datapulse-flask-ai:${{ github.sha }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name datapulse-staging --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/datapulse-django django-api=$ECR_REGISTRY/datapulse-django:${{ github.sha }} -n datapulse
+          kubectl set image deployment/datapulse-fastapi fastapi-ingestion=$ECR_REGISTRY/datapulse-fastapi:${{ github.sha }} -n datapulse
+          kubectl set image deployment/datapulse-flask-ai flask-ai=$ECR_REGISTRY/datapulse-flask-ai:${{ github.sha }} -n datapulse
+          kubectl rollout status deployment/datapulse-django -n datapulse --timeout=300s
+          kubectl rollout status deployment/datapulse-fastapi -n datapulse --timeout=300s
+
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name datapulse-production --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to Production
+        run: |
+          kubectl set image deployment/datapulse-django django-api=$ECR_REGISTRY/datapulse-django:${{ github.sha }} -n datapulse
+          kubectl set image deployment/datapulse-fastapi fastapi-ingestion=$ECR_REGISTRY/datapulse-fastapi:${{ github.sha }} -n datapulse
+          kubectl set image deployment/datapulse-flask-ai flask-ai=$ECR_REGISTRY/datapulse-flask-ai:${{ github.sha }} -n datapulse
+          kubectl rollout status deployment/datapulse-django -n datapulse --timeout=600s
+
+      - name: Notify deployment
+        if: success()
+        run: echo "Production deployment successful for ${{ github.sha }}"
