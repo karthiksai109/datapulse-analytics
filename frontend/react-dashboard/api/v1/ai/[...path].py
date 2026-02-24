@@ -3,6 +3,10 @@ import json
 import statistics
 from urllib.parse import urlparse
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from api._lib.auth import require_auth, has_permission
+
 
 def get_path(full_path):
     parsed = urlparse(full_path)
@@ -109,15 +113,26 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode())
 
     def do_GET(self):
+        user, err = require_auth(self.headers)
+        if err:
+            return self._respond(*err)
         self._respond(200, {
             "service": "DataPulse Flask AI Service",
             "version": "1.0.0",
             "framework": "Flask 3.0",
             "providers": ["AWS Bedrock (Claude)", "OpenAI (GPT-4)"],
             "endpoints": ["summarize", "analyze", "nl-query", "anomaly-detect"],
+            "user": user["username"],
+            "role": user["role"],
         })
 
     def do_POST(self):
+        user, err = require_auth(self.headers)
+        if err:
+            return self._respond(*err)
+        if not has_permission(user["role"], "view:ai"):
+            return self._respond(403, {"detail": "You don't have permission to use AI features.", "code": "permission_denied"})
+
         path = get_path(self.path)
         body = self._read_body()
 
@@ -133,4 +148,4 @@ class handler(BaseHTTPRequestHandler):
             content = f"Dashboard: {body.get('dashboard_title', 'Dashboard')}. Events: {body.get('event_count', 0)}."
             self._respond(*handle_summarize({"content": content, "provider": body.get("provider", "bedrock")}))
         else:
-            self._respond(200, {"service": "DataPulse Flask AI", "path": path})
+            self._respond(404, {"detail": f"AI endpoint /{path} not found.", "code": "not_found"})

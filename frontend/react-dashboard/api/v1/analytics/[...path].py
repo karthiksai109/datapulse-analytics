@@ -1,54 +1,13 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import uuid
-import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urlparse
 
-EVENT_TYPES = ["page_view", "click", "purchase", "signup", "api_call", "error", "login", "search"]
-
-DEMO_SOURCES = [
-    {"id": str(uuid.uuid4()), "name": "Production API", "source_type": "api", "is_active": True, "connection_config": {"url": "https://api.example.com"}, "created_by": "demo", "created_at": "2026-01-15T10:00:00Z", "updated_at": "2026-02-20T14:30:00Z"},
-    {"id": str(uuid.uuid4()), "name": "User Events Webhook", "source_type": "webhook", "is_active": True, "connection_config": {"endpoint": "/webhooks/events"}, "created_by": "demo", "created_at": "2026-01-20T09:00:00Z", "updated_at": "2026-02-18T11:00:00Z"},
-    {"id": str(uuid.uuid4()), "name": "Sales Database", "source_type": "database", "is_active": False, "connection_config": {"host": "db.example.com", "port": 5432}, "created_by": "demo", "created_at": "2026-02-01T08:00:00Z", "updated_at": "2026-02-22T16:00:00Z"},
-    {"id": str(uuid.uuid4()), "name": "Clickstream Data", "source_type": "streaming", "is_active": True, "connection_config": {"topic": "clickstream"}, "created_by": "demo", "created_at": "2026-02-10T12:00:00Z", "updated_at": "2026-02-23T09:00:00Z"},
-    {"id": str(uuid.uuid4()), "name": "Monthly CSV Upload", "source_type": "csv", "is_active": True, "connection_config": {"delimiter": ","}, "created_by": "demo", "created_at": "2026-02-15T07:00:00Z", "updated_at": "2026-02-23T10:00:00Z"},
-]
-
-DEMO_DASHBOARDS = [
-    {"id": str(uuid.uuid4()), "title": "Main Analytics", "description": "Primary analytics dashboard", "layout_config": {}, "is_public": True, "owner": "demo", "data_sources": [], "widgets": [], "created_at": "2026-01-10T08:00:00Z", "updated_at": "2026-02-23T12:00:00Z"},
-    {"id": str(uuid.uuid4()), "title": "Sales Performance", "description": "Revenue and conversion tracking", "layout_config": {}, "is_public": False, "owner": "demo", "data_sources": [], "widgets": [], "created_at": "2026-01-25T10:00:00Z", "updated_at": "2026-02-22T15:00:00Z"},
-    {"id": str(uuid.uuid4()), "title": "User Engagement", "description": "User behavior and retention metrics", "layout_config": {}, "is_public": True, "owner": "demo", "data_sources": [], "widgets": [], "created_at": "2026-02-05T09:00:00Z", "updated_at": "2026-02-21T11:00:00Z"},
-]
-
-DEMO_ALERTS = [
-    {"id": str(uuid.uuid4()), "name": "High Error Rate", "description": "Triggered when error rate exceeds 5%", "condition_config": {"event_type": "error", "threshold": 5, "operator": "gt", "field": "value"}, "severity": "critical", "is_active": True, "owner": "demo", "dashboard": None, "last_triggered": "2026-02-23T14:30:00Z", "trigger_count": 12, "created_at": "2026-01-15T10:00:00Z", "updated_at": "2026-02-23T14:30:00Z"},
-    {"id": str(uuid.uuid4()), "name": "Low Conversion", "description": "Conversion rate dropped below threshold", "condition_config": {"event_type": "purchase", "threshold": 2, "operator": "lt", "field": "value"}, "severity": "high", "is_active": True, "owner": "demo", "dashboard": None, "last_triggered": "2026-02-22T09:00:00Z", "trigger_count": 5, "created_at": "2026-01-20T08:00:00Z", "updated_at": "2026-02-22T09:00:00Z"},
-    {"id": str(uuid.uuid4()), "name": "Spike in Traffic", "description": "Unusual traffic spike detected", "condition_config": {"event_type": "page_view", "threshold": 10000, "operator": "gt", "field": "value"}, "severity": "medium", "is_active": False, "owner": "demo", "dashboard": None, "last_triggered": "2026-02-20T16:00:00Z", "trigger_count": 3, "created_at": "2026-02-01T12:00:00Z", "updated_at": "2026-02-20T16:00:00Z"},
-    {"id": str(uuid.uuid4()), "name": "API Latency Warning", "description": "API response time exceeds 2 seconds", "condition_config": {"event_type": "api_call", "threshold": 2000, "operator": "gt", "field": "duration_ms"}, "severity": "low", "is_active": True, "owner": "demo", "dashboard": None, "last_triggered": None, "trigger_count": 0, "created_at": "2026-02-10T14:00:00Z", "updated_at": "2026-02-10T14:00:00Z"},
-]
-
-DEMO_REPORTS = [
-    {"id": str(uuid.uuid4()), "title": "Weekly Analytics Summary", "dashboard": None, "generated_by": "demo", "format": "pdf", "file_url": "", "ai_summary": "Dashboard 'Main Analytics' analysis: 1,247 events processed from 5 active sources. Key trends show 23% increase in user engagement.", "created_at": "2026-02-23T10:00:00Z"},
-    {"id": str(uuid.uuid4()), "title": "Monthly Revenue Report", "dashboard": None, "generated_by": "demo", "format": "csv", "file_url": "", "ai_summary": "Revenue analysis shows steady growth of 18% MoM. Top performing segments: Enterprise (42%), SMB (35%).", "created_at": "2026-02-20T08:00:00Z"},
-    {"id": str(uuid.uuid4()), "title": "Error Analysis Q1", "dashboard": None, "generated_by": "demo", "format": "json", "file_url": "", "ai_summary": "Error rate analysis: Overall error rate at 2.3%, down from 3.1% last quarter.", "created_at": "2026-02-15T14:00:00Z"},
-]
-
-
-def generate_events(count=50):
-    events = []
-    now = datetime.utcnow()
-    for i in range(count):
-        ts = now - timedelta(hours=random.randint(0, 168))
-        etype = random.choice(EVENT_TYPES)
-        events.append({
-            "id": str(uuid.uuid4()), "event_type": etype, "source": None,
-            "payload": {"value": random.randint(1, 1000), "page": f"/page/{random.randint(1,20)}", "duration_ms": random.randint(50, 5000)},
-            "metadata": {"ip": f"192.168.{random.randint(1,255)}.{random.randint(1,255)}"},
-            "timestamp": ts.isoformat() + "Z", "processed": random.choice([True, False]),
-            "created_at": ts.isoformat() + "Z",
-        })
-    return sorted(events, key=lambda e: e["timestamp"], reverse=True)
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from api._lib.auth import require_auth, require_role, has_permission
+from api._lib.data import SOURCES, DASHBOARDS, ALERTS, REPORTS, generate_events, get_dashboard_stats
 
 
 def get_path(full_path):
@@ -80,39 +39,189 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 
+    def _auth(self, min_role="viewer"):
+        user, err = require_role(self.headers, min_role)
+        if err:
+            self._respond(*err)
+            return None
+        return user
+
+    # ─── Sources ────────────────────────────────────────────────────
+    def _handle_sources_get(self, user):
+        return self._respond(200, {
+            "count": len(SOURCES),
+            "results": SOURCES,
+        })
+
+    def _handle_sources_post(self, user, body):
+        if not has_permission(user["role"], "manage:sources"):
+            return self._respond(403, {"detail": "You don't have permission to create data sources.", "code": "permission_denied"})
+        name = body.get("name", "").strip()
+        if not name:
+            return self._respond(400, {"detail": "Source name is required.", "code": "invalid_input"})
+        new = {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "source_type": body.get("source_type", "api"),
+            "is_active": True,
+            "connection_config": body.get("connection_config", {}),
+            "created_by": user["sub"],
+            "events_count": 0,
+            "last_sync": None,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "updated_at": datetime.utcnow().isoformat() + "Z",
+        }
+        return self._respond(201, new)
+
+    # ─── Events ─────────────────────────────────────────────────────
+    def _handle_events_get(self, user):
+        events = generate_events(100)
+        return self._respond(200, {
+            "count": len(events),
+            "results": events,
+        })
+
+    def _handle_events_post(self, user, body):
+        if not has_permission(user["role"], "write:events"):
+            return self._respond(403, {"detail": "You don't have permission to create events.", "code": "permission_denied"})
+        event = {
+            "id": str(uuid.uuid4()),
+            "event_type": body.get("event_type", "custom"),
+            "source": body.get("source"),
+            "source_name": "Manual Entry",
+            "payload": body.get("payload", {}),
+            "metadata": body.get("metadata", {}),
+            "timestamp": body.get("timestamp", datetime.utcnow().isoformat() + "Z"),
+            "processed": False,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+        }
+        return self._respond(201, event)
+
+    # ─── Dashboards ─────────────────────────────────────────────────
+    def _handle_dashboards_get(self, user):
+        role = user.get("role", "viewer")
+        if role == "viewer":
+            visible = [d for d in DASHBOARDS if d["is_public"]]
+        else:
+            visible = DASHBOARDS
+        return self._respond(200, {
+            "count": len(visible),
+            "results": visible,
+        })
+
+    def _handle_dashboards_post(self, user, body):
+        if not has_permission(user["role"], "manage:dashboards"):
+            return self._respond(403, {"detail": "You don't have permission to create dashboards.", "code": "permission_denied"})
+        title = body.get("title", "").strip()
+        if not title:
+            return self._respond(400, {"detail": "Dashboard title is required.", "code": "invalid_input"})
+        dash = {
+            "id": str(uuid.uuid4()),
+            "title": title,
+            "description": body.get("description", ""),
+            "layout_config": body.get("layout_config", {"columns": 3, "rows": 3}),
+            "is_public": body.get("is_public", False),
+            "owner": user["sub"],
+            "data_sources": [],
+            "widget_count": 0,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "updated_at": datetime.utcnow().isoformat() + "Z",
+        }
+        return self._respond(201, dash)
+
+    # ─── Alerts ─────────────────────────────────────────────────────
+    def _handle_alerts_get(self, user):
+        return self._respond(200, {
+            "count": len(ALERTS),
+            "results": ALERTS,
+        })
+
+    def _handle_alerts_post(self, user, body):
+        if not has_permission(user["role"], "manage:alerts"):
+            return self._respond(403, {"detail": "You don't have permission to create alerts.", "code": "permission_denied"})
+        name = body.get("name", "").strip()
+        if not name:
+            return self._respond(400, {"detail": "Alert name is required.", "code": "invalid_input"})
+        alert = {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "description": body.get("description", ""),
+            "condition_config": body.get("condition_config", {}),
+            "severity": body.get("severity", "medium"),
+            "is_active": True,
+            "owner": user["sub"],
+            "dashboard": body.get("dashboard"),
+            "last_triggered": None,
+            "trigger_count": 0,
+            "notification_channels": body.get("notification_channels", ["slack"]),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "updated_at": datetime.utcnow().isoformat() + "Z",
+        }
+        return self._respond(201, alert)
+
+    # ─── Reports ────────────────────────────────────────────────────
+    def _handle_reports_get(self, user):
+        return self._respond(200, {
+            "count": len(REPORTS),
+            "results": REPORTS,
+        })
+
+    def _handle_reports_post(self, user, body):
+        if not has_permission(user["role"], "generate:reports"):
+            return self._respond(403, {"detail": "You don't have permission to generate reports.", "code": "permission_denied"})
+        title = body.get("title", "").strip()
+        if not title:
+            return self._respond(400, {"detail": "Report title is required.", "code": "invalid_input"})
+        report = {
+            "id": str(uuid.uuid4()),
+            "title": title,
+            "dashboard": body.get("dashboard"),
+            "generated_by": user["sub"],
+            "format": body.get("format", "pdf"),
+            "file_url": "",
+            "ai_summary": f"Generating AI summary for report '{title}'... Analysis of dashboard data shows normal operational patterns with key metrics within expected thresholds.",
+            "status": "processing",
+            "created_at": datetime.utcnow().isoformat() + "Z",
+        }
+        return self._respond(201, report)
+
+    # ─── Stats ──────────────────────────────────────────────────────
+    def _handle_stats_get(self, user):
+        return self._respond(200, get_dashboard_stats())
+
+    # ─── Router ─────────────────────────────────────────────────────
     def _route(self, method):
         path = get_path(self.path)
         body = self._read_body() if method in ("POST", "PUT", "PATCH") else {}
 
+        user = self._auth("viewer")
+        if not user:
+            return
+
         if path.startswith("sources") and method == "GET":
-            return self._respond(200, DEMO_SOURCES)
+            return self._handle_sources_get(user)
         elif path.startswith("sources") and method == "POST":
-            new = {"id": str(uuid.uuid4()), "name": body.get("name", "New Source"), "source_type": body.get("source_type", "api"), "is_active": True, "connection_config": body.get("connection_config", {}), "created_by": "demo", "created_at": datetime.utcnow().isoformat() + "Z", "updated_at": datetime.utcnow().isoformat() + "Z"}
-            return self._respond(201, new)
+            return self._handle_sources_post(user, body)
         elif path.startswith("events") and method == "GET":
-            return self._respond(200, generate_events())
+            return self._handle_events_get(user)
         elif path.startswith("events") and method == "POST":
-            event = {"id": str(uuid.uuid4()), "event_type": body.get("event_type", "custom"), "source": body.get("source"), "payload": body.get("payload", {}), "metadata": body.get("metadata", {}), "timestamp": body.get("timestamp", datetime.utcnow().isoformat() + "Z"), "processed": False, "created_at": datetime.utcnow().isoformat() + "Z"}
-            return self._respond(201, event)
+            return self._handle_events_post(user, body)
         elif path.startswith("dashboards") and method == "GET":
-            return self._respond(200, DEMO_DASHBOARDS)
+            return self._handle_dashboards_get(user)
         elif path.startswith("dashboards") and method == "POST":
-            dash = {"id": str(uuid.uuid4()), "title": body.get("title", "New Dashboard"), "description": body.get("description", ""), "layout_config": {}, "is_public": False, "owner": "demo", "data_sources": [], "widgets": [], "created_at": datetime.utcnow().isoformat() + "Z", "updated_at": datetime.utcnow().isoformat() + "Z"}
-            return self._respond(201, dash)
+            return self._handle_dashboards_post(user, body)
         elif path.startswith("alerts") and method == "GET":
-            return self._respond(200, DEMO_ALERTS)
+            return self._handle_alerts_get(user)
         elif path.startswith("alerts") and method == "POST":
-            alert = {"id": str(uuid.uuid4()), "name": body.get("name", "New Alert"), "description": body.get("description", ""), "condition_config": body.get("condition_config", {}), "severity": body.get("severity", "medium"), "is_active": True, "owner": "demo", "dashboard": None, "last_triggered": None, "trigger_count": 0, "created_at": datetime.utcnow().isoformat() + "Z", "updated_at": datetime.utcnow().isoformat() + "Z"}
-            return self._respond(201, alert)
+            return self._handle_alerts_post(user, body)
         elif path.startswith("reports") and method == "GET":
-            return self._respond(200, DEMO_REPORTS)
+            return self._handle_reports_get(user)
         elif path.startswith("reports") and method == "POST":
-            report = {"id": str(uuid.uuid4()), "title": body.get("title", "New Report"), "dashboard": body.get("dashboard"), "generated_by": "demo", "format": body.get("format", "pdf"), "file_url": "", "ai_summary": f"Report generated. Analysis shows normal patterns.", "created_at": datetime.utcnow().isoformat() + "Z"}
-            return self._respond(201, report)
+            return self._handle_reports_post(user, body)
         elif path.startswith("stats"):
-            return self._respond(200, {"total_events": random.randint(12000, 15000), "active_sources": 5, "active_alerts": 3, "total_dashboards": 3})
+            return self._handle_stats_get(user)
         else:
-            return self._respond(200, {"service": "DataPulse Django Analytics API", "path": path})
+            return self._respond(404, {"detail": f"Endpoint /analytics/{path} not found.", "code": "not_found"})
 
     def do_GET(self):
         self._route("GET")
