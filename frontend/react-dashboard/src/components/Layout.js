@@ -79,16 +79,20 @@ const Layout = () => {
       </AppBar>
 
       <Drawer
-        variant="persistent"
+        variant="permanent"
         open={drawerOpen}
         sx={{
           width: drawerOpen ? DRAWER_WIDTH : 0,
           flexShrink: 0,
+          transition: 'width 0.3s',
+          overflow: 'hidden',
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
             background: '#0d1117',
             borderRight: '1px solid rgba(255,255,255,0.06)',
+            transition: 'transform 0.3s',
+            transform: drawerOpen ? 'translateX(0)' : `translateX(-${DRAWER_WIDTH}px)`,
           },
         }}
       >
@@ -118,7 +122,7 @@ const Layout = () => {
         </List>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8, transition: 'margin 0.3s', ml: drawerOpen ? 0 : `-${DRAWER_WIDTH}px` }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8, minWidth: 0, transition: 'margin-left 0.3s' }}>
         <Outlet />
       </Box>
     </Box>
